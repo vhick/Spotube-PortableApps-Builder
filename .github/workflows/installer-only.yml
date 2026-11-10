@@ -1,0 +1,100 @@
+name: Spotube - Installer Only from Validated Release ZIP
+on:
+  workflow_dispatch:
+    inputs:
+      source_release_tag:
+        description: "Existing builder-owned release tag holding a validated SpotubePortable ZIP + SHA256SUMS.txt"
+        required: true
+        type: string
+      installer_revision:
+        description: "Installer-only revision for new release identity (r1, r2, ...)"
+        required: true
+        default: r1
+        type: string
+      publish:
+        description: "Publish new verified installer-only release"
+        required: true
+        default: true
+        type: boolean
+permissions:
+  contents: write
+concurrency:
+  group: spotube-portableapps-installer-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  installer:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Retrieve a previous verified builder ZIP from THIS repository
+        env:
+          SOURCE_TAG: ${{ inputs.source_release_tag }}
+          REPACKAGE_REVISION: ${{ inputs.installer_revision }}
+        run: |
+          if ($env:SOURCE_TAG -notmatch '^portable-spotube-v[0-9]+\.[0-9]+\.[0-9]+-[0-9a-f]{10}-b1r1$') { throw 'Invalid/unrelated release identity' }
+          New-Item -ItemType Directory -Force -Path download | Out-Null
+          gh release download "$env:SOURCE_TAG" --repo "$env:GITHUB_REPOSITORY" --pattern '*.zip' --dir download
+          if ($LASTEXITCODE -ne 0) { throw 'Earlier ZIP download failed' }
+          gh release download "$env:SOURCE_TAG" --repo "$env:GITHUB_REPOSITORY" --pattern 'SHA256SUMS.txt' --dir download
+          if ($LASTEXITCODE -ne 0) { throw 'Earlier release checksum download failed' }
+      - name: Validate release checksum, ZIP identity, and safe contents
+        id: repackage
+        env:
+          REPACKAGE_REVISION: ${{ inputs.installer_revision }}
+        run: |
+          python scripts/repackage.py
+          if ($LASTEXITCODE -ne 0) { throw 'Source ZIP verification failed' }
+      - name: Compile installer via pinned shared package builder
+        id: installer
+        uses: vhick/Portable-Package-Builder@v1.0.0
+        with:
+          source-dir: staging/SpotubePortable
+          output-dir: out/installers
+          engine: custom-nsis
+          running-exe: App/Spotube/spotube.exe
+          package-revision: ${{ inputs.installer_revision }}
+          timeout-seconds: '1200'
+      - name: Independently inspect installer
+        run: |
+          python scripts/build.py verify-installer '${{ steps.installer.outputs.installer-file }}'
+          if ($LASTEXITCODE -ne 0) { throw 'Installer validation failed' }
+          $hash = (Get-FileHash '${{ steps.installer.outputs.installer-file }}' -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne '${{ steps.installer.outputs.installer-sha256 }}') { throw 'Installer checksum mismatch' }
+      - name: Copy verified original ZIP to new release directory
+        run: |
+          New-Item -ItemType Directory -Force -Path out | Out-Null
+          Copy-Item -Path (Get-ChildItem download -Filter '*.zip' -File | Select-Object -First 1).FullName -Destination out
+      - name: Publisher dry-run
+        uses: vhick/portable-release-publisher@v1.1.1
+        with:
+          files: 'out/*.zip;out/installers/*.paf.exe'
+          tag: ${{ steps.repackage.outputs.tag }}
+          release-title: 'Spotube ${{ steps.repackage.outputs.version }} PortableApps verified installer-only ${{ inputs.installer_revision }}'
+          tag-prefix: portable-
+          keep-releases: '3'
+          prune: 'false'
+          dry-run: 'true'
+      - name: Publish validated original ZIP and new installer
+        if: inputs.publish
+        uses: vhick/portable-release-publisher@v1.1.1
+        with:
+          files: 'out/*.zip;out/installers/*.paf.exe'
+          tag: ${{ steps.repackage.outputs.tag }}
+          release-title: 'Spotube ${{ steps.repackage.outputs.version }} PortableApps verified installer-only ${{ inputs.installer_revision }}'
+          tag-prefix: portable-
+          keep-releases: '3'
+          prune: 'false'
+          dry-run: 'false'

@@ -1,0 +1,118 @@
+name: Spotube - Build PortableApps ZIP and Installer
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_version:
+        description: "Stable version (e.g. 6.0.0); blank = latest stable with official x64 setup EXE"
+        required: false
+        type: string
+        default: ''
+      publish:
+        description: "Publish validated assets to this repository's GitHub Releases"
+        required: true
+        type: boolean
+        default: true
+permissions:
+  contents: write
+concurrency:
+  group: spotube-portableapps-build-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 75
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      PYTHONIOENCODING: utf-8
+      PYTHONUTF8: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Get standalone builder repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: MSVC x64 compiler and resource tool
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+      - name: Tool and regression preflight
+        run: |
+          python -m pip install --disable-pip-version-check Pillow==11.2.1
+          python -m unittest discover -s tests -v
+          Get-Command cl.exe, rc.exe -ErrorAction Stop | Format-Table
+          python -c "import sys; sys.path.insert(0, 'scripts'); import build; print(build.sevenzip_exe())"
+      - name: Resolve source, download and verify official release, compile launcher, validate ZIP
+        id: portable
+        env:
+          SOURCE_VERSION: ${{ inputs.upstream_version }}
+        run: |
+          python scripts/build.py build --version "$env:SOURCE_VERSION"
+          if ($LASTEXITCODE -ne 0) { throw 'Spotube build/ZIP validation failed' }
+      - name: Independent ZIP checks
+        run: |
+          $zip = Get-ChildItem 'out' -Filter '*.zip' -File | Select-Object -First 1
+          if (-not $zip) { throw 'ZIP not produced' }
+          python scripts/build.py verify-zip "$($zip.FullName)"
+          if ($LASTEXITCODE -ne 0) { throw 'Independent ZIP validation failed' }
+      - name: Run synthetic Windows launcher/profile/empty-directory recovery fixture
+        run: |
+          python tests/windows_launcher_fixture.py
+          if ($LASTEXITCODE -ne 0) { throw 'Windows launcher fixture failed' }
+      - name: Generate PortableApps-style installer with pinned shared package builder
+        id: installer
+        continue-on-error: true
+        uses: vhick/Portable-Package-Builder@v1.0.0
+        with:
+          source-dir: staging/SpotubePortable
+          output-dir: out/installers
+          engine: custom-nsis
+          running-exe: App/Spotube/spotube.exe
+          package-revision: b1r1
+          timeout-seconds: '1200'
+      - name: Independently inspect installer PE, extracted payload and SHA-256
+        if: steps.installer.outcome == 'success'
+        id: installer_check
+        continue-on-error: true
+        run: |
+          $exe = '${{ steps.installer.outputs.installer-file }}'
+          if (-not $exe -or -not (Test-Path -LiteralPath $exe)) { throw 'Installer missing at shared action output' }
+          python scripts/build.py verify-installer "$exe"
+          if ($LASTEXITCODE -ne 0) { throw 'Installer did not pass independent validation' }
+          $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne '${{ steps.installer.outputs.installer-sha256 }}') { throw 'Shared builder SHA mismatch' }
+      - name: Remove any invalid installer outputs before release
+        if: steps.installer.outcome != 'success' || steps.installer_check.outcome == 'failure'
+        run: |
+          if (Test-Path -LiteralPath 'out/installers') { Remove-Item -LiteralPath 'out/installers' -Recurse -Force }
+          Write-Warning 'Installer failed validation. The separately verified ZIP is retained.'
+      - name: Release Publisher preflight (no publishing)
+        uses: vhick/portable-release-publisher@v1.1.1
+        with:
+          files: 'out/*.zip;out/installers/*.paf.exe'
+          tag: ${{ steps.portable.outputs.tag }}
+          release-title: 'Spotube ${{ steps.portable.outputs.version }} PortableApps (unofficial, b1r1)'
+          tag-prefix: portable-
+          keep-releases: '3'
+          prune: 'false'
+          dry-run: 'true'
+      - name: Publish only independently validated outputs
+        if: inputs.publish
+        uses: vhick/portable-release-publisher@v1.1.1
+        with:
+          files: 'out/*.zip;out/installers/*.paf.exe'
+          tag: ${{ steps.portable.outputs.tag }}
+          release-title: 'Spotube ${{ steps.portable.outputs.version }} PortableApps (unofficial, b1r1)'
+          tag-prefix: portable-
+          keep-releases: '3'
+          prune: 'false'
+          dry-run: 'false'
+      - name: Report installer failure after keeping ZIP
+        if: steps.installer.outcome == 'failure' || steps.installer_check.outcome == 'failure'
+        run: |
+          throw 'Installer generation/inspection FAILED. The separately verified ZIP was preserved (and published if enabled). No installer-success claim.'

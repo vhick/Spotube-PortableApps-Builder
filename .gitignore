@@ -1,0 +1,11 @@
+/work/
+/staging/
+/out/
+/download/
+__pycache__/
+*.pyc
+*.obj
+*.res
+*.pdb
+*.ilk
+.vscode/
