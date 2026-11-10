@@ -7,9 +7,9 @@ Shared Package Builder: https://raw.githubusercontent.com/vhick/Portable-Package
 | `source-dir` | yes | `staging/SpotubePortable` |
 | `output-dir` | yes | `out/installers` |
 | `engine` | no, default custom-nsis | `custom-nsis` |
-| `running-exe` | no | `App/Spotube/spotube.exe` |
+| `running-exe` | no | `App\Spotube\spotube.exe` (backslashes REQUIRED by pinned v1.0.0 regex) |
 | `timeout-seconds` | no | `1200` |
-| `package-revision` | no | `b1r2` (main) or installer revision |
+| `package-revision` | no | `b1r3` (main) or installer revision |
 | `official-tool-url` | only when official engine | unused |
 | `official-tool-sha256` | only when official engine | unused |
 
@@ -24,7 +24,7 @@ Shared Release Publisher: https://raw.githubusercontent.com/vhick/portable-relea
 | Input | Used here |
 |---|---|
 | `files` | `out/*.zip;out/installers/*.paf.exe` |
-| `tag` | `portable-spotube-v<VERSION>-<COMMIT10>-b1r2` or installer-only suffix |
+| `tag` | `portable-spotube-v<VERSION>-<COMMIT10>-b1r3` or installer-only suffix |
 | `release-title` | identified upstream Spotube version |
 | `tag-prefix` | `portable-` |
 | `keep-releases` | `3` |

@@ -1,6 +1,7 @@
 """Offline static/fixture checks. They do NOT claim real Spotube GUI portability."""
 import hashlib
 import importlib.util
+import re
 from pathlib import Path
 import struct
 import tempfile
@@ -65,11 +66,11 @@ class BuilderTests(unittest.TestCase):
                     build.verify_agpl_license(path)
 
     def test_revision_identity(self):
-        self.assertEqual(build.REV, 'b1r2')
+        self.assertEqual(build.REV, 'b1r3')
         main = (ROOT / '.github' / 'workflows' / 'build-portableapps.yml').read_text(encoding='utf-8')
-        self.assertIn('package-revision: b1r2', main)
+        self.assertIn('package-revision: b1r3', main)
         repack = (ROOT / '.github' / 'workflows' / 'installer-only.yml').read_text(encoding='utf-8')
-        self.assertIn(r'-b1r[12]$', repack)
+        self.assertIn(r'-b1r[123]$', repack)
 
     def test_official_workflow_contract(self):
         w=(ROOT/'.github'/'workflows'/'build-portableapps.yml').read_text(encoding='utf-8')
@@ -80,6 +81,27 @@ class BuilderTests(unittest.TestCase):
         self.assertIn("dry-run: 'false'",w)
         self.assertIn('continue-on-error: true',w)
         self.assertNotIn('official-tool-url:',w)
+    def test_pinned_packager_running_exe_win32_paths(self):
+        """Regression: v1.0.0 Test-RelativeEXE accepts backslashes, not '/' separators.
+
+        Pinned source: vhick/Portable-Package-Builder@v1.0.0/scripts/common.ps1.
+        Inspect BOTH workflows so installer-only does not repeat the original failure.
+        """
+        # Exact character class / backslash-only separator shape of pinned Test-RelativeEXE.
+        pattern = re.compile(r'^(?!.*(?:^|[\\/])\.\.(?:[\\/]|$))[A-Za-z0-9_.+ -]+(?:\\[A-Za-z0-9_.+ -]+)*\.exe$')
+        correct = r'App\Spotube\spotube.exe'
+        self.assertIsNotNone(pattern.fullmatch(correct))
+        self.assertIsNone(pattern.fullmatch('App/Spotube/spotube.exe'))
+        self.assertIsNone(pattern.fullmatch(r'App\..\Spotube\spotube.exe'))
+        for workflow in ('build-portableapps.yml', 'installer-only.yml'):
+            body = (ROOT / '.github' / 'workflows' / workflow).read_text(encoding='utf-8')
+            found = re.findall(r'(?m)^\s*running-exe:\s*(.+?)\s*$', body)
+            self.assertEqual(len(found), 1, workflow)
+            value = found[0].strip().strip("'\"")
+            self.assertEqual(value, correct, workflow)
+            self.assertIsNotNone(pattern.fullmatch(value), workflow)
+            self.assertNotIn('/', value, workflow)
+
     def test_launcher_security_invariants(self):
         t=(ROOT/'launcher'/'SpotubePortable.cpp').read_text(encoding='utf-8')
         self.assertIn('CREATE_SUSPENDED|CREATE_UNICODE_ENVIRONMENT',t)

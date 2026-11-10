@@ -2,6 +2,9 @@
 
 ## GitHub Actions build
 
+**`running-exe must be a relative Windows .exe file` on b1r2:** the pinned shared Package Builder `v1.0.0` rejects forward-slash path separators in its `running-exe` input. b1r3 passes the required `'App\Spotube\spotube.exe'` (backslashes) in **both** workflows and adds a regression check. The earlier ZIP from release tag `portable-spotube-v6.0.0-8925b1b935-b1r2` already passed independent verification and was published. Prefer **Installer Only from Validated Release ZIP** using that exact `source_release_tag` and `installer_revision: r1` rather than downloading/building Spotube again. Installer success remains subject to a real Windows CI rerun.
+
+
 **`Missing upstream AGPL license` on b1r1:** `git clone` succeeded but a formatting-sensitive exact-prefix check failed. b1r2 validates a complete AGPLv3 license after allowing UTF-8 BOM and leading blank lines. It retains the exact original license bytes in the package. It does NOT skip licensing checks.
 
 **No suitable release asset:** only official, stable `vX.Y.Z` releases with `Spotube-windows-x86_64-setup.exe` are supported. The source-backed recipe requires v6 or newer. Don't silently use a beta, source from main or a Flutter-era v5 setup.

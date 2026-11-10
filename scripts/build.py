@@ -23,7 +23,7 @@ import zipfile
 
 REPO = 'team-spotube/spotube'
 ASSET = 'Spotube-windows-x86_64-setup.exe'
-REV = 'b1r2'
+REV = 'b1r3'
 PINNED_DIGEST = {'v6.0.0': 'd7e073ead0707fcdfcc50074e88721b7df38dc10248eadafc346867e156c6e8d'}
 WORK = Path(__file__).resolve().parent.parent
 API = f'https://api.github.com/repos/{REPO}'
