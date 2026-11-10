@@ -2,6 +2,8 @@
 
 ## GitHub Actions build
 
+**`Missing upstream AGPL license` on b1r1:** `git clone` succeeded but a formatting-sensitive exact-prefix check failed. b1r2 validates a complete AGPLv3 license after allowing UTF-8 BOM and leading blank lines. It retains the exact original license bytes in the package. It does NOT skip licensing checks.
+
 **No suitable release asset:** only official, stable `vX.Y.Z` releases with `Spotube-windows-x86_64-setup.exe` are supported. The source-backed recipe requires v6 or newer. Don't silently use a beta, source from main or a Flutter-era v5 setup.
 
 **GitHub API fails 401/403/429/5xx:** inspect token permissions, rate limit, and GitHub availability. Only an expected 404 for explicitly requested release is handled as not found. Never treat authentication/rate-limit errors as an unpublished release.

@@ -44,7 +44,7 @@ jobs:
           SOURCE_TAG: ${{ inputs.source_release_tag }}
           REPACKAGE_REVISION: ${{ inputs.installer_revision }}
         run: |
-          if ($env:SOURCE_TAG -notmatch '^portable-spotube-v[0-9]+\.[0-9]+\.[0-9]+-[0-9a-f]{10}-b1r1$') { throw 'Invalid/unrelated release identity' }
+          if ($env:SOURCE_TAG -notmatch '^portable-spotube-v[0-9]+\.[0-9]+\.[0-9]+-[0-9a-f]{10}-b1r[12]$') { throw 'Invalid/unrelated release identity' }
           New-Item -ItemType Directory -Force -Path download | Out-Null
           gh release download "$env:SOURCE_TAG" --repo "$env:GITHUB_REPOSITORY" --pattern '*.zip' --dir download
           if ($LASTEXITCODE -ne 0) { throw 'Earlier ZIP download failed' }

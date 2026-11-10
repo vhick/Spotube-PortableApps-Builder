@@ -38,6 +38,39 @@ class BuilderTests(unittest.TestCase):
             with zipfile.ZipFile(f,'w') as z:
                 z.writestr('SpotubePortable/../escape',b'x')
             with self.assertRaises(RuntimeError): build.verify_zip(f)
+    def test_verified_agpl_license_tolerates_utf8_bom_and_whitespace(self):
+        # A BOM and blank lines are legal formatting, not evidence of a missing license.
+        content = ('GNU AFFERO GENERAL PUBLIC LICENSE\n'
+                   ' Version 3, 19 November 2007\n'
+                   ' TERMS AND CONDITIONS\n'
+                   + ('Full legal license text.\n' * 1200)
+                   + ' END OF TERMS AND CONDITIONS\n')
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / 'LICENSE'
+            for raw in (content.encode('utf-8'),
+                        b'\xef\xbb\xbf' + content.encode('utf-8'),
+                        b'\xef\xbb\xbf\r\n  ' + content.encode('utf-8')):
+                path.write_bytes(raw)
+                self.assertIn('GNU AFFERO GENERAL PUBLIC LICENSE', build.verify_agpl_license(path))
+
+    def test_license_rejects_wrong_or_truncated_content(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / 'LICENSE'
+            for raw in (b'GNU AFFERO GENERAL PUBLIC LICENSE',
+                        (b'MIT License\n' * 5000),
+                        (b'GNU GENERAL PUBLIC LICENSE\n' * 5000),
+                        (b'\xff' * 20000)):
+                path.write_bytes(raw)
+                with self.assertRaises(RuntimeError):
+                    build.verify_agpl_license(path)
+
+    def test_revision_identity(self):
+        self.assertEqual(build.REV, 'b1r2')
+        main = (ROOT / '.github' / 'workflows' / 'build-portableapps.yml').read_text(encoding='utf-8')
+        self.assertIn('package-revision: b1r2', main)
+        repack = (ROOT / '.github' / 'workflows' / 'installer-only.yml').read_text(encoding='utf-8')
+        self.assertIn(r'-b1r[12]$', repack)
+
     def test_official_workflow_contract(self):
         w=(ROOT/'.github'/'workflows'/'build-portableapps.yml').read_text(encoding='utf-8')
         self.assertIn('vhick/Portable-Package-Builder@v1.0.0',w)

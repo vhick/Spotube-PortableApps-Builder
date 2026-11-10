@@ -1,16 +1,22 @@
-# Spotube PortableApps Builder b1r1
+# Spotube PortableApps Builder b1r2
 
 **Independent, unofficial builder repository.** Mode: **PORTABLEAPPS ONLY** for official Windows x64 Spotube **v6+** releases. No upstream fork, local compiler, manually downloaded files or private actions needed. Upstream Spotube v6 has switched from Flutter to Compose Multiplatform; the v5 release cannot be passed to this v6 recipe.
+
+## b1r2 fix (November 10, 2026)
+
+Corrects the first observed GitHub Actions error `FAILED: Missing upstream AGPL license` at Spotube v6.0.0 source checkout. The actual license is present; the strict exact-prefix verification was brittle. The new validator accepts a UTF-8 BOM and leading whitespace while retaining full AGPLv3 checks and original-file redistribution. The patched code is covered by offline regression fixtures; a successful Windows build is **not yet confirmed**.
+
+Suggested GitHub Desktop commit summary: `Fix Spotube AGPL license validation (b1r2)`.
 
 ## Quick start (GitHub Desktop)
 
 1. On GitHub, create a **new empty repository** named e.g. `Spotube-PortableApps-Builder`. Choose **Private** if you want only yourself to see its releases, or Public if you intend to publish them. **Do not fork Spotube.**
 2. Click **Code > Open with GitHub Desktop** on your new repository (or use **File > Clone repository** in GitHub Desktop). Clone it to a clean folder.
 3. Open the ZIP of **this builder kit**, and extract **all** its contents into your newly cloned builder repository root. Confirm the hidden `.github/workflows/` folder exists in the repository. There must be no extra nested builder-kit directory.
-4. In GitHub Desktop, write a commit summary such as `Add Spotube PortableApps builder b1r1`, click **Commit to main**, then **Push origin**. No manual `git init` or upstream fork is necessary.
+4. In GitHub Desktop, write a commit summary such as `Add Spotube PortableApps builder b1r2`, click **Commit to main**, then **Push origin**. No manual `git init` or upstream fork is necessary.
 5. In GitHub, select **Actions > Spotube - Build PortableApps ZIP and Installer > Run workflow**. Leave version blank for the latest supported stable official x64 installer, or specify `6.0.0`. `publish` defaults to true.
 6. Read each step in Actions. If **Resolve source...**, **installer**, or **publisher** fails, inspect the first error and download the logs. The workflow does not pretend GUI tests succeeded.
-7. Open **Releases** in your own builder repository and download `SpotubePortable_<version>_<commit>_b1r1.zip`, or the separately generated `*.paf.exe` installer. Verify each against the published `SHA256SUMS.txt`.
+7. Open **Releases** in your own builder repository and download `SpotubePortable_<version>_<commit>_b1r2.zip`, or the separately generated `*.paf.exe` installer. Verify each against the published `SHA256SUMS.txt`.
 8. For ZIP, extract the entire `SpotubePortable` folder, then run **`SpotubePortable.exe`**. For installer, select a PortableApps location, install, refresh the PortableApps Platform menu and launch it there.
 9. **Upgrade:** exit Spotube completely, back up the entire portable folder, then use the new installer over the existing folder (after manual installer-behavior testing), or replace the `App` and root launcher while preserving **all of `Data`**. Never wipe `Data\TraceGuard` (especially recovery manifests/backups) or replace the whole folder blindly.
 10. **Rollback:** close all Spotube/tray processes; restore the last known-good binaries and matching backed-up `Data`. Newer storage schemas may make older apps incompatible, so retain a matching backup.
@@ -68,7 +74,7 @@ The software may still use Windows-managed files, OS media-session/notification 
 
 ## Packaging-only workflow
 
-If upstream retrieval/build is already successful but shared installer packaging fails, fix/upgrade this *builder source* with a new builder revision as needed, then run **Actions > Spotube - Installer Only from Validated Release ZIP**. Provide the original published release tag, e.g. `portable-spotube-v6.0.0-<commit10>-b1r1`, and new installer revision `r1`. The workflow retrieves the earlier **exact ZIP and `SHA256SUMS.txt` from this same repository**, independently checks checksum, ZIP paths, binary checksums, product identity and builder revision; it never rebuilds upstream. It produces a **new** installer-only release tag with `-installer-r1` suffix so prior publications are never silently overwritten.
+If upstream retrieval/build is already successful but shared installer packaging fails, fix/upgrade this *builder source* with a new builder revision as needed, then run **Actions > Spotube - Installer Only from Validated Release ZIP**. Provide the original published release tag, e.g. `portable-spotube-v6.0.0-<commit10>-b1r2`, and new installer revision `r1`. The workflow retrieves the earlier **exact ZIP and `SHA256SUMS.txt` from this same repository**, independently checks checksum, ZIP paths, binary checksums, product identity and builder revision; it never rebuilds upstream. It produces a **new** installer-only release tag with `-installer-r1` suffix so prior publications are never silently overwritten.
 
 ## Limitations that matter
 

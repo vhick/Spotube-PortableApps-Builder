@@ -41,7 +41,7 @@ def main():
                 with z.open(info) as src,out.open('wb') as dst:
                     import shutil; shutil.copyfileobj(src,dst)
     identity=json.loads((stage/'Other'/'Source'/'BUILD-IDENTITY.json').read_text(encoding='utf-8'))
-    build.require(identity['builder_revision']=='b1r1','Unexpected builder revision; audit newer source before repackage')
+    build.require(identity['builder_revision'] in {'b1r1','b1r2'},'Unexpected builder revision; audit newer source before repackage')
     build.require(build.sha(stage/'SpotubePortable.exe')==identity['launcher_binary_sha256'],'Launcher changed')
     build.validate_stage(stage,identity['upstream_tag'])
     revision=os.environ.get('REPACKAGE_REVISION','r1')

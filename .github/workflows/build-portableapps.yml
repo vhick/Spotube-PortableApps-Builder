@@ -73,7 +73,7 @@ jobs:
           output-dir: out/installers
           engine: custom-nsis
           running-exe: App/Spotube/spotube.exe
-          package-revision: b1r1
+          package-revision: b1r2
           timeout-seconds: '1200'
       - name: Independently inspect installer PE, extracted payload and SHA-256
         if: steps.installer.outcome == 'success'
@@ -96,7 +96,7 @@ jobs:
         with:
           files: 'out/*.zip;out/installers/*.paf.exe'
           tag: ${{ steps.portable.outputs.tag }}
-          release-title: 'Spotube ${{ steps.portable.outputs.version }} PortableApps (unofficial, b1r1)'
+          release-title: 'Spotube ${{ steps.portable.outputs.version }} PortableApps (unofficial, b1r2)'
           tag-prefix: portable-
           keep-releases: '3'
           prune: 'false'
@@ -107,7 +107,7 @@ jobs:
         with:
           files: 'out/*.zip;out/installers/*.paf.exe'
           tag: ${{ steps.portable.outputs.tag }}
-          release-title: 'Spotube ${{ steps.portable.outputs.version }} PortableApps (unofficial, b1r1)'
+          release-title: 'Spotube ${{ steps.portable.outputs.version }} PortableApps (unofficial, b1r2)'
           tag-prefix: portable-
           keep-releases: '3'
           prune: 'false'

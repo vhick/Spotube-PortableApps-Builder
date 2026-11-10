@@ -23,7 +23,7 @@ import zipfile
 
 REPO = 'team-spotube/spotube'
 ASSET = 'Spotube-windows-x86_64-setup.exe'
-REV = 'b1r1'
+REV = 'b1r2'
 PINNED_DIGEST = {'v6.0.0': 'd7e073ead0707fcdfcc50074e88721b7df38dc10248eadafc346867e156c6e8d'}
 WORK = Path(__file__).resolve().parent.parent
 API = f'https://api.github.com/repos/{REPO}'
@@ -94,6 +94,30 @@ def run(*args, cwd=None) -> None:
     subprocess.run([str(a) for a in args], cwd=cwd, check=True)
 
 
+def verify_agpl_license(path: Path) -> str:
+    """Require the real complete upstream AGPLv3 license, while tolerating a BOM/blank lines.
+
+    Some source files begin with UTF-8 BOM or harmless leading whitespace.
+    Checking the exact byte prefix reports a false missing-license error.
+    Return the original content unchanged for package license attribution.
+    """
+    require(path.is_file(), f'Upstream license file missing: {path}')
+    raw = path.read_bytes()
+    require(len(raw) > 15000, f'Upstream AGPL license unexpectedly short: {path}')
+    try:
+        content = raw.decode('utf-8-sig')
+    except UnicodeDecodeError as exc:
+        raise RuntimeError(f'Upstream license is not valid UTF-8: {path}') from exc
+    normalized = content.lstrip(' \t\r\n')
+    require(re.match(r'GNU AFFERO GENERAL PUBLIC LICENSE\s+Version 3,\s*19 November 2007\b',
+                     normalized) is not None and
+            'TERMS AND CONDITIONS' in normalized and
+            'END OF TERMS AND CONDITIONS' in normalized,
+            f'Upstream LICENSE is not the expected complete GNU AGPL version 3: {path}')
+    print(f'UPSTREAM LICENSE VERIFIED: AGPLv3, {len(raw)} bytes, SHA-256 {hashlib.sha256(raw).hexdigest()}', flush=True)
+    return content
+
+
 def git_checkout(tag, dest: Path):
     require(not dest.exists(), 'Existing upstream checkout path; clean before build')
     run('git', 'clone', '--quiet', '--depth', '1', '--branch', tag,
@@ -106,7 +130,7 @@ def git_checkout(tag, dest: Path):
     text = gradle.read_text(encoding='utf-8')
     match = re.search(r'val version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"', text)
     require(bool(match) and ('v'+match.group(1))==tag, 'Tag and official application version disagree')
-    require((dest/'LICENSE').read_text(encoding='utf-8').startswith('GNU AFFERO GENERAL PUBLIC LICENSE'), 'Missing upstream AGPL license')
+    verify_agpl_license(dest/'LICENSE')
     return commit
 
 
